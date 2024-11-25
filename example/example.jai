@@ -9,8 +9,8 @@ main :: () {
     session_desc: slang.SessionDesc;
     target_desc: slang.TargetDesc;
 
-    target_desc.format = .SLANG_SPIRV;
-    target_desc.profile = slang.IGlobalSession_findProfile(global_session, to_c_string("spirv_1_5"));
+    target_desc.format = .SLANG_WGSL;
+    // target_desc.profile = slang.IGlobalSession_findProfile(global_session, to_c_string("spirv_1_5"));
 
     session_desc.targets = *target_desc;
     session_desc.targetCount = 1;

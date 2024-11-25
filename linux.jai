@@ -688,7 +688,9 @@ CompilerOptionName :: enum s32 {
     ForceDXLayout                    :: 110;
 
     EmitSpirvMethod                  :: 111;
-    CountOf                          :: 112;
+
+    EmitReflectionJSON               :: 112;
+    CountOf                          :: 113;
 }
 
 CompilerOptionValueKind :: enum s32 {
@@ -1108,7 +1110,7 @@ CompileCoreModuleFlag :: struct {
 
 IBlob :: ISlangBlob;
 
-/* A global session for interaction with the Slang library.
+/** A global session for interaction with the Slang library.
 
 An application may create and re-use a single global session across
 multiple sessions, in order to amortize startups costs (in current
@@ -1181,41 +1183,41 @@ IGlobalSession_getSessionDescDigest :: inline (this: *IGlobalSession, sessionDes
 vtable :: (obj: *IGlobalSession) -> *IGlobalSession_VTable { return obj.iglobalsession_vtable; }
 
 
-/* Description of a code generation target.
+/** Description of a code generation target.
 */
 TargetDesc :: struct {
-    /* The size of this structure, in bytes.
+    /** The size of this structure, in bytes.
     */
     structureSize:               u64 = 48;
 
-    /* The target format to generate code for (e.g., SPIR-V, DXIL, etc.)
+    /** The target format to generate code for (e.g., SPIR-V, DXIL, etc.)
     */
     format:                      SlangCompileTarget = .TARGET_UNKNOWN;
 
-    /* The compilation profile supported by the target (e.g., "Shader Model 5.1")
+    /** The compilation profile supported by the target (e.g., "Shader Model 5.1")
     */
     profile:                     SlangProfileID = .SLANG_PROFILE_UNKNOWN;
 
-    /* Flags for the code generation target. Currently unused. */
+    /** Flags for the code generation target. Currently unused. */
     flags:                       SlangTargetFlags = kDefaultTargetFlags;
 
-    /* Default mode to use for floating-point operations on the target.
+    /** Default mode to use for floating-point operations on the target.
     */
     floatingPointMode:           SlangFloatingPointMode = .DEFAULT;
 
-    /* The line directive mode for output source code.
+    /** The line directive mode for output source code.
     */
     lineDirectiveMode:           SlangLineDirectiveMode = .DEFAULT;
 
-    /* Whether to force `scalar` layout for glsl shader storage buffers.
+    /** Whether to force `scalar` layout for glsl shader storage buffers.
     */
     forceGLSLScalarBufferLayout  := false;
 
-    /* Pointer to an array of compiler option entries, whose size is compilerOptionEntryCount.
+    /** Pointer to an array of compiler option entries, whose size is compilerOptionEntryCount.
     */
     compilerOptionEntries:       *CompilerOptionEntry = null;
 
-    /* Number of additional compiler option entries.
+    /** Number of additional compiler option entries.
     */
     compilerOptionEntryCount:    u32 = 0;
 }
@@ -1231,24 +1233,24 @@ PreprocessorMacroDesc :: struct {
 }
 
 SessionDesc :: struct {
-    /* The size of this structure, in bytes.
+    /** The size of this structure, in bytes.
     */
     structureSize:            u64 = 96;
 
-    /* Code generation targets to include in the session.
+    /** Code generation targets to include in the session.
     */
     targets:                  *TargetDesc = null;
     targetCount:              SlangInt = 0;
 
-    /* Flags to configure the session.
+    /** Flags to configure the session.
     */
     flags:                    SessionFlags = xx anon_enum.kSessionFlags_None;
 
-    /* Default layout to assume for variables with matrix types.
+    /** Default layout to assume for variables with matrix types.
     */
     defaultMatrixLayoutMode:  SlangMatrixLayoutMode = .ROW_MAJOR;
 
-    /* Paths to use when searching for `#include`d or `import`ed files.
+    /** Paths to use when searching for `#include`d or `import`ed files.
     */
     searchPaths:              **u8 = null;
     searchPathCount:          SlangInt = 0;
@@ -1261,11 +1263,11 @@ SessionDesc :: struct {
     enableEffectAnnotations   := false;
     allowGLSLSyntax           := false;
 
-    /* Pointer to an array of compiler option entries, whose size is compilerOptionEntryCount.
+    /** Pointer to an array of compiler option entries, whose size is compilerOptionEntryCount.
     */
     compilerOptionEntries:    *CompilerOptionEntry = null;
 
-    /* Number of additional compiler option entries.
+    /** Number of additional compiler option entries.
     */
     compilerOptionEntryCount: u32 = 0;
 }
@@ -1278,7 +1280,7 @@ ContainerType :: enum s32 {
     ParameterBlock   :: 4;
 }
 
-/* A session provides a scope for code that is loaded.
+/** A session provides a scope for code that is loaded.
 
 A session can be used to load modules of Slang source code,
 and to request target-specific compiled binaries and layout
@@ -1363,7 +1365,7 @@ IMetadata_isParameterLocationUsed :: inline (this: *IMetadata, category: SlangPa
 vtable :: (obj: *IMetadata) -> *IMetadata_VTable { return obj.imetadata_vtable; }
 
 
-/* A component type is a unit of shader code layout, reflection, and linking.
+/** A component type is a unit of shader code layout, reflection, and linking.
 
 A component type is a unit of shader code that can be included into
 a linked and compiled shader program. Each component type may have:
@@ -1480,7 +1482,7 @@ ITypeConformance :: struct {
     #as using icomponenttype: IComponentType;
 }
 
-/* A module is the granularity of shader code compilation and loading.
+/** A module is the granularity of shader code compilation and loading.
 
 In most cases a module corresponds to a single compile "translation unit."
 This will often be a single `.slang` or `.hlsl` file and everything it
@@ -1548,7 +1550,7 @@ IModulePrecompileService_Experimental_getModuleDependency :: inline (this: *IMod
 vtable :: (obj: *IModulePrecompileService_Experimental) -> *IModulePrecompileService_Experimental_VTable { return obj.imoduleprecompileservice_experimental_vtable; }
 
 
-/* Argument used for specialization to types/values.
+/** Argument used for specialization to types/values.
 */
 SpecializationArg :: struct {
     Kind :: enum s32 {
@@ -1556,15 +1558,15 @@ SpecializationArg :: struct {
         Type    :: 1;
     }
 
-    /* The kind of specialization argument. */
+    /** The kind of specialization argument. */
     kind: Kind;
     union {
-        /* A type specialization argument, used for `Kind::Type`. */
+        /** A type specialization argument, used for `Kind::Type`. */
         type: *TypeReflection;
     }
 }
 
-/* A result code for a Slang API operation.
+/** A result code for a Slang API operation.
 
 This type is generally compatible with the Windows API `HRESULT` type. In particular, negative
 values indicate failure results, while zero or positive results indicate success.
@@ -1605,7 +1607,7 @@ SLANG_E_DRIVER_OUT_OF_MEMORY
 */
 SlangResult :: s32;
 
-/* A "Universally Unique Identifier" (UUID)
+/** A "Universally Unique Identifier" (UUID)
 
 The Slang API uses UUIDs to identify interfaces when
 using `queryInterface`.
@@ -1621,7 +1623,7 @@ SlangUUID :: struct {
     data4: [8] u8;
 }
 
-/* Base interface for components exchanged through the API.
+/** Base interface for components exchanged through the API.
 
 This interface definition is compatible with the COM `IUnknown`,
 and uses the same UUID, but Slang does not require applications
@@ -1671,7 +1673,7 @@ ISlangClonable_clone :: inline (this: *ISlangClonable, guid: *SlangUUID) -> *voi
 vtable :: (obj: *ISlangClonable) -> *ISlangClonable_VTable { return obj.islangclonable_vtable; }
 
 
-/* A "blob" of binary data.
+/** A "blob" of binary data.
 
 This interface definition is compatible with the `ID3DBlob` and `ID3D10Blob` interfaces.
 */
@@ -1697,7 +1699,7 @@ SlangTerminatedChars :: struct {
     chars: [1] u8;
 }
 
-/* A (real or virtual) file system.
+/** A (real or virtual) file system.
 
 Slang can make use of this interface whenever it would otherwise try to load files
 from disk, allowing applications to hook and/or override filesystem access from
@@ -1722,7 +1724,7 @@ vtable :: (obj: *ISlangFileSystem) -> *ISlangFileSystem_VTable { return obj.isla
 
 SlangFuncPtr :: #type () -> void #c_call;
 
-/*
+/**
 (DEPRECATED) ISlangSharedLibrary
 */
 ISlangSharedLibrary_Dep1 :: struct {
@@ -1738,7 +1740,7 @@ ISlangSharedLibrary_Dep1_findSymbolAddressByName :: inline (this: *ISlangSharedL
 vtable :: (obj: *ISlangSharedLibrary_Dep1) -> *ISlangSharedLibrary_Dep1_VTable { return obj.islangsharedlibrary_dep1_vtable; }
 
 
-/* An interface that can be used to encapsulate access to a shared library. An implementation
+/** An interface that can be used to encapsulate access to a shared library. An implementation
 does not have to implement the library as a shared library
 */
 ISlangSharedLibrary :: struct {
@@ -1802,7 +1804,7 @@ PathKind :: enum s32 {
     CountOf         :: 4;
 }
 
-/* An extended file system abstraction.
+/** An extended file system abstraction.
 
 Implementing and using this interface over ISlangFileSystem gives much more control over how
 paths are managed, as well as how it is determined if two files 'are the same'.
@@ -1877,7 +1879,7 @@ SlangWriterMode :: enum SlangWriterModeIntegral {
     SLANG_WRITER_MODE_BINARY :: BINARY;
 }
 
-/* A stream typically of text, used for outputting diagnostic as well as other information.
+/** A stream typically of text, used for outputting diagnostic as well as other information.
 */
 ISlangWriter :: struct {
     #as using islangunknown: ISlangUnknown;
@@ -2282,7 +2284,7 @@ SlangParameterCategory :: enum SlangParameterCategoryIntegral {
     SLANG_PARAMETER_CATEGORY_COUNT_V1                      :: COUNT_V1;
 }
 
-/* Types of API-managed bindings that a parameter might use.
+/** Types of API-managed bindings that a parameter might use.
 
 `SlangBindingType` represents the distinct types of binding ranges that might be
 understood by an underlying graphics API or cross-API abstraction layer.
@@ -2506,23 +2508,23 @@ spCreateSession :: (deprecated: *u8 = null) -> *SlangSession #foreign libslang;
 */
 spDestroySession :: (session: *SlangSession) -> void #foreign libslang;
 
-/* @see slang::IGlobalSession::setSharedLibraryLoader
+/** @see slang::IGlobalSession::setSharedLibraryLoader
 */
 spSessionSetSharedLibraryLoader :: (session: *SlangSession, loader: *ISlangSharedLibraryLoader) -> void #foreign libslang;
 
-/* @see slang::IGlobalSession::getSharedLibraryLoader
+/** @see slang::IGlobalSession::getSharedLibraryLoader
 */
 spSessionGetSharedLibraryLoader :: (session: *SlangSession) -> *ISlangSharedLibraryLoader #foreign libslang;
 
-/* @see slang::IGlobalSession::checkCompileTargetSupport
+/** @see slang::IGlobalSession::checkCompileTargetSupport
 */
 spSessionCheckCompileTargetSupport :: (session: *SlangSession, target: SlangCompileTarget) -> SlangResult #foreign libslang;
 
-/* @see slang::IGlobalSession::checkPassThroughSupport
+/** @see slang::IGlobalSession::checkPassThroughSupport
 */
 spSessionCheckPassThroughSupport :: (session: *SlangSession, passThrough: SlangPassThrough) -> SlangResult #foreign libslang;
 
-/* @see slang::IGlobalSession::addBuiltins
+/** @see slang::IGlobalSession::addBuiltins
 */
 spAddBuiltins :: (session: *SlangSession, sourcePath: *u8, sourceString: *u8) -> void #foreign libslang;
 
@@ -2723,7 +2725,7 @@ spEnableReproCapture :: (request: *SlangCompileRequest) -> SlangResult #foreign 
 /*! @see slang::ICompileRequest::getCompileTimeProfile */
 spGetCompileTimeProfile :: (request: *SlangCompileRequest, compileTimeProfile: **ISlangProfiler, shouldClear: bool) -> SlangResult #foreign libslang;
 
-/* Extract contents of a repro.
+/** Extract contents of a repro.
 
 Writes the contained files and manifest with their 'unique' names into fileSystem. For more
 details read the docs/repro.md documentation.
@@ -2773,7 +2775,7 @@ spReflectionUserAttribute_GetArgumentValueInt :: (attrib: *SlangReflectionUserAt
 
 spReflectionUserAttribute_GetArgumentValueFloat :: (attrib: *SlangReflectionUserAttribute, index: u32, rs: *float) -> SlangResult #foreign libslang;
 
-/* Returns the string-typed value of a user attribute argument
+/** Returns the string-typed value of a user attribute argument
 The string returned is not null-terminated. The length of the string is returned via
 `outSize`. If index of out of range, or if the specified argument is not a string, the
 function will return nullptr.
@@ -2792,7 +2794,7 @@ spReflectionType_applySpecializations :: (type: *SlangReflectionType, generic: *
 spReflectionType_GetFieldCount :: (type: *SlangReflectionType) -> u32 #foreign libslang;
 spReflectionType_GetFieldByIndex :: (type: *SlangReflectionType, index: u32) -> *SlangReflectionVariable #foreign libslang;
 
-/* Returns the number of elements in the given type.
+/** Returns the number of elements in the given type.
 
 This operation is valid for vector and array types. For other types it returns zero.
 
@@ -2994,7 +2996,7 @@ spReflectionGeneric_GetConcreteIntVal :: (generic: *SlangReflectionGeneric, valu
 
 spReflectionGeneric_applySpecializations :: (currGeneric: *SlangReflectionGeneric, generic: *SlangReflectionGeneric) -> *SlangReflectionGeneric #foreign libslang;
 
-/* Get the stage that a variable belongs to (if any).
+/** Get the stage that a variable belongs to (if any).
 
 A variable "belongs" to a specific stage when it is a varying input/output
 parameter either defined as part of the parameter list for an entry
@@ -3045,6 +3047,8 @@ spReflectionTypeParameter_GetConstraintCount :: (typeParam: *SlangReflectionType
 spReflectionTypeParameter_GetConstraintByIndex :: (typeParam: *SlangReflectionTypeParameter, index: u32) -> *SlangReflectionType #foreign libslang;
 
 // Shader Reflection
+spReflection_ToJson :: (reflection: *SlangReflection, request: *SlangCompileRequest, outBlob: **ISlangBlob) -> SlangResult #foreign libslang;
+
 spReflection_GetParameterCount :: (reflection: *SlangReflection) -> u32 #foreign libslang;
 spReflection_GetParameterByIndex :: (reflection: *SlangReflection, index: u32) -> *SlangReflectionParameter #foreign libslang;
 
@@ -3098,23 +3102,23 @@ spGetTranslationUnitSource :: (request: *SlangCompileRequest, translationUnitInd
 
 spReflection_GetSession :: (reflection: *SlangReflection) -> *ISession #foreign libslang "_Z23spReflection_GetSessionP18SlangProgramLayout";
 
-/* @see slang::ICompileRequest::getProgram
+/** @see slang::ICompileRequest::getProgram
 */
 spCompileRequest_getProgram :: (request: *SlangCompileRequest, outProgram: **IComponentType) -> SlangResult #foreign libslang;
 
-/* @see slang::ICompileRequest::getProgramWithEntryPoints
+/** @see slang::ICompileRequest::getProgramWithEntryPoints
 */
 spCompileRequest_getProgramWithEntryPoints :: (request: *SlangCompileRequest, outProgram: **IComponentType) -> SlangResult #foreign libslang;
 
-/* @see slang::ICompileRequest::getEntryPoint
+/** @see slang::ICompileRequest::getEntryPoint
 */
 spCompileRequest_getEntryPoint :: (request: *SlangCompileRequest, entryPointIndex: SlangInt, outEntryPoint: **IComponentType) -> SlangResult #foreign libslang;
 
-/* @see slang::ICompileRequest::getModule
+/** @see slang::ICompileRequest::getModule
 */
 spCompileRequest_getModule :: (request: *SlangCompileRequest, translationUnitIndex: SlangInt, outModule: **IModule) -> SlangResult #foreign libslang;
 
-/* @see slang::ICompileRequest::getSession
+/** @see slang::ICompileRequest::getSession
 */
 spCompileRequest_getSession :: (request: *SlangCompileRequest, outSession: **ISession) -> SlangResult #foreign libslang;
 
