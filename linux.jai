@@ -4,6 +4,59 @@
 // jai generate.jai
 //
 
+// Slang Result helpers and macro-defined constants
+
+SLANG_FAILED :: (status: s32) -> bool {
+    return status < 0;
+}
+
+SLANG_SUCCEEDED :: (status: s32) -> bool {
+    return status >= 0;
+}
+
+SLANG_GET_RESULT_FACILITY :: (r: s32) -> s32 {
+    return (r >> 16) & 0x7fff;
+}
+
+SLANG_GET_RESULT_CODE :: (r: s32) -> s32 {
+    return r & 0xffff;
+}
+
+SLANG_MAKE_ERROR :: (fac: s32, code: s32) -> s32 {
+    return (fac << 16) | code | cast(s32, 0x80000000);
+}
+
+SLANG_MAKE_SUCCESS :: (fac: s32, code: s32) -> s32 {
+    return (fac << 16) | cast(s32, code);
+}
+
+SLANG_FAIL :: #run SLANG_MAKE_ERROR(SLANG_FACILITY_WIN_GENERAL, 0x4005);
+
+SLANG_MAKE_WIN_GENERAL_ERROR :: (code: s32) -> s32 {
+    return SLANG_MAKE_ERROR(SLANG_FACILITY_WIN_GENERAL, code);
+}
+
+SLANG_E_NOT_IMPLEMENTED :: #run SLANG_MAKE_WIN_GENERAL_ERROR(0x4001);
+SLANG_E_NO_INTERFACE    :: #run SLANG_MAKE_WIN_GENERAL_ERROR(0x4002);
+SLANG_E_ABORT           :: #run SLANG_MAKE_WIN_GENERAL_ERROR(0x4004);
+
+SLANG_E_INVALID_HANDLE :: #run SLANG_MAKE_ERROR(SLANG_FACILITY_WIN_API, 6);
+SLANG_E_INVALID_ARG    :: #run SLANG_MAKE_ERROR(SLANG_FACILITY_WIN_API, 0x57);
+SLANG_E_OUT_OF_MEMORY  :: #run SLANG_MAKE_ERROR(SLANG_FACILITY_WIN_API, 0xe);
+
+SLANG_MAKE_CORE_ERROR :: (code: s32) -> s32 {
+    return SLANG_MAKE_ERROR(SLANG_FACILITY_CORE, code);
+}
+
+SLANG_E_BUFFER_TOO_SMALL :: #run SLANG_MAKE_CORE_ERROR(1);
+SLANG_E_UNINITIALIZED    :: #run SLANG_MAKE_CORE_ERROR(2);
+SLANG_E_PENDING          :: #run SLANG_MAKE_CORE_ERROR(3);
+SLANG_E_CANNOT_OPEN      :: #run SLANG_MAKE_CORE_ERROR(4);
+SLANG_E_NOT_FOUND        :: #run SLANG_MAKE_CORE_ERROR(5);
+SLANG_E_INTERNAL_FAIL    :: #run SLANG_MAKE_CORE_ERROR(6);
+SLANG_E_NOT_AVAILABLE    :: #run SLANG_MAKE_CORE_ERROR(7);
+SLANG_E_TIME_OUT         :: #run SLANG_MAKE_CORE_ERROR(8);
+
 
 
 SLANG_CLANG :: 1;
@@ -282,7 +335,8 @@ SlangPassThrough :: enum SlangPassThroughIntegral {
     SPIRV_OPT     :: 11;
     METAL         :: 12;
     TINT          :: 13;
-    COUNT_OF      :: 14;
+    SPIRV_LINK    :: 14;
+    COUNT_OF      :: 15;
 
     SLANG_PASS_THROUGH_NONE          :: NONE;
     SLANG_PASS_THROUGH_FXC           :: FXC;
@@ -299,6 +353,7 @@ SlangPassThrough :: enum SlangPassThroughIntegral {
     SLANG_PASS_THROUGH_SPIRV_OPT     :: SPIRV_OPT;
     SLANG_PASS_THROUGH_METAL         :: METAL;
     SLANG_PASS_THROUGH_TINT          :: TINT;
+    SLANG_PASS_THROUGH_SPIRV_LINK    :: SPIRV_LINK;
     SLANG_PASS_THROUGH_COUNT_OF      :: COUNT_OF;
 }
 
@@ -469,6 +524,8 @@ SlangStage :: enum SlangStageIntegral {
     MESH           :: 13;
     AMPLIFICATION  :: 14;
 
+    COUNT          :: 15;
+
     PIXEL          :: 5;
 
     SLANG_STAGE_NONE           :: NONE;
@@ -486,6 +543,8 @@ SlangStage :: enum SlangStageIntegral {
     SLANG_STAGE_CALLABLE       :: CALLABLE;
     SLANG_STAGE_MESH           :: MESH;
     SLANG_STAGE_AMPLIFICATION  :: AMPLIFICATION;
+
+    SLANG_STAGE_COUNT          :: COUNT;
 
     SLANG_STAGE_PIXEL          :: PIXEL;
 }
@@ -663,32 +722,38 @@ CompilerOptionName :: enum s32 {
     ValidateUniformity               :: 90;
     AllowGLSL                        :: 91;
     EnableExperimentalPasses         :: 92;
+    BindlessSpaceIndex               :: 93;
 
-    ArchiveType                      :: 93;
-    CompileCoreModule                :: 94;
-    Doc                              :: 95;
-    IrCompression                    :: 96;
-    LoadCoreModule                   :: 97;
-    ReferenceModule                  :: 98;
-    SaveCoreModule                   :: 99;
-    SaveCoreModuleBinSource          :: 100;
-    TrackLiveness                    :: 101;
-    LoopInversion                    :: 102;
+    ArchiveType                      :: 94;
+    CompileCoreModule                :: 95;
+    Doc                              :: 96;
+    IrCompression                    :: 97;
+    LoadCoreModule                   :: 98;
+    ReferenceModule                  :: 99;
+    SaveCoreModule                   :: 100;
+    SaveCoreModuleBinSource          :: 101;
+    TrackLiveness                    :: 102;
+    LoopInversion                    :: 103;
 
-    ParameterBlocksUseRegisterSpaces :: 103;
+    ParameterBlocksUseRegisterSpaces :: 104;
 
-    CountOfParsableOptions           :: 104;
+    CountOfParsableOptions           :: 105;
 
-    DebugInformationFormat           :: 105;
-    VulkanBindShiftAll               :: 106;
-    GenerateWholeProgram             :: 107;
-    UseUpToDateBinaryModule          :: 108;
+    DebugInformationFormat           :: 106;
+    VulkanBindShiftAll               :: 107;
+    GenerateWholeProgram             :: 108;
+    UseUpToDateBinaryModule          :: 109;
 
-    EmbedDownstreamIR                :: 109;
-    ForceDXLayout                    :: 110;
+    EmbedDownstreamIR                :: 110;
+    ForceDXLayout                    :: 111;
 
-    EmitSpirvMethod                  :: 111;
-    CountOf                          :: 112;
+    EmitSpirvMethod                  :: 112;
+
+    EmitReflectionJSON               :: 113;
+    SaveGLSLModuleBinSource          :: 114;
+
+    SkipDownstreamLinking            :: 115;
+    CountOf                          :: 116;
 }
 
 CompilerOptionValueKind :: enum s32 {
@@ -891,9 +956,11 @@ GenericArgReflection :: union {
     boolVal: bool;
 }
 
-UserAttribute :: struct {
+Attribute :: struct {
     __empty_struct_padding: u8; // C++ makes empty structs have length 1
 }
+
+UserAttribute :: Attribute;
 
 TypeReflection :: struct {
     Kind :: enum s32 {
@@ -1082,7 +1149,7 @@ DeclReflection :: struct {
             parent: *DeclReflection;
             count:  u32;
             index:  u32;
-        }
+        } #no_padding
     }
 
     IteratedList :: struct {
@@ -1108,7 +1175,12 @@ CompileCoreModuleFlag :: struct {
 
 IBlob :: ISlangBlob;
 
-/* A global session for interaction with the Slang library.
+BuiltinModuleName :: enum s32 {
+    Core :: 0;
+    GLSL :: 1;
+}
+
+/** A global session for interaction with the Slang library.
 
 An application may create and re-use a single global session across
 multiple sessions, in order to amortize startups costs (in current
@@ -1150,6 +1222,9 @@ IGlobalSession_VTable :: struct #type_info_none {
     setSPIRVCoreGrammar: (this: *IGlobalSession, jsonPath: *u8) -> SlangResult #cpp_method;
     parseCommandLineArguments: (this: *IGlobalSession, argc: s32, argv: **u8, outSessionDesc: *SessionDesc, outAuxAllocation: **ISlangUnknown) -> SlangResult #cpp_method;
     getSessionDescDigest: (this: *IGlobalSession, sessionDesc: *SessionDesc, outBlob: **ISlangBlob) -> SlangResult #cpp_method;
+    compileBuiltinModule: (this: *IGlobalSession, module: BuiltinModuleName, flags: CompileCoreModuleFlags) -> SlangResult #cpp_method;
+    loadBuiltinModule: (this: *IGlobalSession, module: BuiltinModuleName, moduleData: *void, sizeInBytes: u64) -> SlangResult #cpp_method;
+    saveBuiltinModule: (this: *IGlobalSession, module: BuiltinModuleName, archiveType: SlangArchiveType, outBlob: **ISlangBlob) -> SlangResult #cpp_method;
 }
 IGlobalSession_createSession :: inline (this: *IGlobalSession, desc: *SessionDesc, outSession: **ISession) -> SlangResult { return this.iglobalsession_vtable.createSession(this, desc, outSession); }
 IGlobalSession_findProfile :: inline (this: *IGlobalSession, name: *u8) -> SlangProfileID { return this.iglobalsession_vtable.findProfile(this, name); }
@@ -1177,45 +1252,48 @@ IGlobalSession_getCompilerElapsedTime :: inline (this: *IGlobalSession, outTotal
 IGlobalSession_setSPIRVCoreGrammar :: inline (this: *IGlobalSession, jsonPath: *u8) -> SlangResult { return this.iglobalsession_vtable.setSPIRVCoreGrammar(this, jsonPath); }
 IGlobalSession_parseCommandLineArguments :: inline (this: *IGlobalSession, argc: s32, argv: **u8, outSessionDesc: *SessionDesc, outAuxAllocation: **ISlangUnknown) -> SlangResult { return this.iglobalsession_vtable.parseCommandLineArguments(this, argc, argv, outSessionDesc, outAuxAllocation); }
 IGlobalSession_getSessionDescDigest :: inline (this: *IGlobalSession, sessionDesc: *SessionDesc, outBlob: **ISlangBlob) -> SlangResult { return this.iglobalsession_vtable.getSessionDescDigest(this, sessionDesc, outBlob); }
+IGlobalSession_compileBuiltinModule :: inline (this: *IGlobalSession, module: BuiltinModuleName, flags: CompileCoreModuleFlags) -> SlangResult { return this.iglobalsession_vtable.compileBuiltinModule(this, module, flags); }
+IGlobalSession_loadBuiltinModule :: inline (this: *IGlobalSession, module: BuiltinModuleName, moduleData: *void, sizeInBytes: u64) -> SlangResult { return this.iglobalsession_vtable.loadBuiltinModule(this, module, moduleData, sizeInBytes); }
+IGlobalSession_saveBuiltinModule :: inline (this: *IGlobalSession, module: BuiltinModuleName, archiveType: SlangArchiveType, outBlob: **ISlangBlob) -> SlangResult { return this.iglobalsession_vtable.saveBuiltinModule(this, module, archiveType, outBlob); }
 
 vtable :: (obj: *IGlobalSession) -> *IGlobalSession_VTable { return obj.iglobalsession_vtable; }
 
 
-/* Description of a code generation target.
+/** Description of a code generation target.
 */
 TargetDesc :: struct {
-    /* The size of this structure, in bytes.
+    /** The size of this structure, in bytes.
     */
     structureSize:               u64 = 48;
 
-    /* The target format to generate code for (e.g., SPIR-V, DXIL, etc.)
+    /** The target format to generate code for (e.g., SPIR-V, DXIL, etc.)
     */
     format:                      SlangCompileTarget = .TARGET_UNKNOWN;
 
-    /* The compilation profile supported by the target (e.g., "Shader Model 5.1")
+    /** The compilation profile supported by the target (e.g., "Shader Model 5.1")
     */
     profile:                     SlangProfileID = .SLANG_PROFILE_UNKNOWN;
 
-    /* Flags for the code generation target. Currently unused. */
+    /** Flags for the code generation target. Currently unused. */
     flags:                       SlangTargetFlags = kDefaultTargetFlags;
 
-    /* Default mode to use for floating-point operations on the target.
+    /** Default mode to use for floating-point operations on the target.
     */
     floatingPointMode:           SlangFloatingPointMode = .DEFAULT;
 
-    /* The line directive mode for output source code.
+    /** The line directive mode for output source code.
     */
     lineDirectiveMode:           SlangLineDirectiveMode = .DEFAULT;
 
-    /* Whether to force `scalar` layout for glsl shader storage buffers.
+    /** Whether to force `scalar` layout for glsl shader storage buffers.
     */
     forceGLSLScalarBufferLayout  := false;
 
-    /* Pointer to an array of compiler option entries, whose size is compilerOptionEntryCount.
+    /** Pointer to an array of compiler option entries, whose size is compilerOptionEntryCount.
     */
     compilerOptionEntries:       *CompilerOptionEntry = null;
 
-    /* Number of additional compiler option entries.
+    /** Number of additional compiler option entries.
     */
     compilerOptionEntryCount:    u32 = 0;
 }
@@ -1231,24 +1309,24 @@ PreprocessorMacroDesc :: struct {
 }
 
 SessionDesc :: struct {
-    /* The size of this structure, in bytes.
+    /** The size of this structure, in bytes.
     */
     structureSize:            u64 = 96;
 
-    /* Code generation targets to include in the session.
+    /** Code generation targets to include in the session.
     */
     targets:                  *TargetDesc = null;
     targetCount:              SlangInt = 0;
 
-    /* Flags to configure the session.
+    /** Flags to configure the session.
     */
     flags:                    SessionFlags = xx anon_enum.kSessionFlags_None;
 
-    /* Default layout to assume for variables with matrix types.
+    /** Default layout to assume for variables with matrix types.
     */
     defaultMatrixLayoutMode:  SlangMatrixLayoutMode = .ROW_MAJOR;
 
-    /* Paths to use when searching for `#include`d or `import`ed files.
+    /** Paths to use when searching for `#include`d or `import`ed files.
     */
     searchPaths:              **u8 = null;
     searchPathCount:          SlangInt = 0;
@@ -1261,11 +1339,11 @@ SessionDesc :: struct {
     enableEffectAnnotations   := false;
     allowGLSLSyntax           := false;
 
-    /* Pointer to an array of compiler option entries, whose size is compilerOptionEntryCount.
+    /** Pointer to an array of compiler option entries, whose size is compilerOptionEntryCount.
     */
     compilerOptionEntries:    *CompilerOptionEntry = null;
 
-    /* Number of additional compiler option entries.
+    /** Number of additional compiler option entries.
     */
     compilerOptionEntryCount: u32 = 0;
 }
@@ -1278,7 +1356,7 @@ ContainerType :: enum s32 {
     ParameterBlock   :: 4;
 }
 
-/* A session provides a scope for code that is loaded.
+/** A session provides a scope for code that is loaded.
 
 A session can be used to load modules of Slang source code,
 and to request target-specific compiled binaries and layout
@@ -1286,7 +1364,7 @@ information.
 
 In order to be able to load code, the session owns a set
 of active "search paths" for resolving `#include` directives
-and `import` declrations, as well as a set of global
+and `import` declarations, as well as a set of global
 preprocessor definitions that will be used for all code
 that gets `import`ed in the session.
 
@@ -1363,7 +1441,7 @@ IMetadata_isParameterLocationUsed :: inline (this: *IMetadata, category: SlangPa
 vtable :: (obj: *IMetadata) -> *IMetadata_VTable { return obj.imetadata_vtable; }
 
 
-/* A component type is a unit of shader code layout, reflection, and linking.
+/** A component type is a unit of shader code layout, reflection, and linking.
 
 A component type is a unit of shader code that can be included into
 a linked and compiled shader program. Each component type may have:
@@ -1480,7 +1558,7 @@ ITypeConformance :: struct {
     #as using icomponenttype: IComponentType;
 }
 
-/* A module is the granularity of shader code compilation and loading.
+/** A module is the granularity of shader code compilation and loading.
 
 In most cases a module corresponds to a single compile "translation unit."
 This will often be a single `.slang` or `.hlsl` file and everything it
@@ -1548,7 +1626,7 @@ IModulePrecompileService_Experimental_getModuleDependency :: inline (this: *IMod
 vtable :: (obj: *IModulePrecompileService_Experimental) -> *IModulePrecompileService_Experimental_VTable { return obj.imoduleprecompileservice_experimental_vtable; }
 
 
-/* Argument used for specialization to types/values.
+/** Argument used for specialization to types/values.
 */
 SpecializationArg :: struct {
     Kind :: enum s32 {
@@ -1556,15 +1634,15 @@ SpecializationArg :: struct {
         Type    :: 1;
     }
 
-    /* The kind of specialization argument. */
+    /** The kind of specialization argument. */
     kind: Kind;
     union {
-        /* A type specialization argument, used for `Kind::Type`. */
+        /** A type specialization argument, used for `Kind::Type`. */
         type: *TypeReflection;
     }
 }
 
-/* A result code for a Slang API operation.
+/** A result code for a Slang API operation.
 
 This type is generally compatible with the Windows API `HRESULT` type. In particular, negative
 values indicate failure results, while zero or positive results indicate success.
@@ -1605,7 +1683,7 @@ SLANG_E_DRIVER_OUT_OF_MEMORY
 */
 SlangResult :: s32;
 
-/* A "Universally Unique Identifier" (UUID)
+/** A "Universally Unique Identifier" (UUID)
 
 The Slang API uses UUIDs to identify interfaces when
 using `queryInterface`.
@@ -1621,7 +1699,7 @@ SlangUUID :: struct {
     data4: [8] u8;
 }
 
-/* Base interface for components exchanged through the API.
+/** Base interface for components exchanged through the API.
 
 This interface definition is compatible with the COM `IUnknown`,
 and uses the same UUID, but Slang does not require applications
@@ -1671,7 +1749,7 @@ ISlangClonable_clone :: inline (this: *ISlangClonable, guid: *SlangUUID) -> *voi
 vtable :: (obj: *ISlangClonable) -> *ISlangClonable_VTable { return obj.islangclonable_vtable; }
 
 
-/* A "blob" of binary data.
+/** A "blob" of binary data.
 
 This interface definition is compatible with the `ID3DBlob` and `ID3D10Blob` interfaces.
 */
@@ -1697,7 +1775,7 @@ SlangTerminatedChars :: struct {
     chars: [1] u8;
 }
 
-/* A (real or virtual) file system.
+/** A (real or virtual) file system.
 
 Slang can make use of this interface whenever it would otherwise try to load files
 from disk, allowing applications to hook and/or override filesystem access from
@@ -1722,7 +1800,7 @@ vtable :: (obj: *ISlangFileSystem) -> *ISlangFileSystem_VTable { return obj.isla
 
 SlangFuncPtr :: #type () -> void #c_call;
 
-/*
+/**
 (DEPRECATED) ISlangSharedLibrary
 */
 ISlangSharedLibrary_Dep1 :: struct {
@@ -1738,7 +1816,7 @@ ISlangSharedLibrary_Dep1_findSymbolAddressByName :: inline (this: *ISlangSharedL
 vtable :: (obj: *ISlangSharedLibrary_Dep1) -> *ISlangSharedLibrary_Dep1_VTable { return obj.islangsharedlibrary_dep1_vtable; }
 
 
-/* An interface that can be used to encapsulate access to a shared library. An implementation
+/** An interface that can be used to encapsulate access to a shared library. An implementation
 does not have to implement the library as a shared library
 */
 ISlangSharedLibrary :: struct {
@@ -1802,7 +1880,7 @@ PathKind :: enum s32 {
     CountOf         :: 4;
 }
 
-/* An extended file system abstraction.
+/** An extended file system abstraction.
 
 Implementing and using this interface over ISlangFileSystem gives much more control over how
 paths are managed, as well as how it is determined if two files 'are the same'.
@@ -1877,7 +1955,7 @@ SlangWriterMode :: enum SlangWriterModeIntegral {
     SLANG_WRITER_MODE_BINARY :: BINARY;
 }
 
-/* A stream typically of text, used for outputting diagnostic as well as other information.
+/** A stream typically of text, used for outputting diagnostic as well as other information.
 */
 ISlangWriter :: struct {
     #as using islangunknown: ISlangUnknown;
@@ -1967,6 +2045,7 @@ SlangReflectionVariable :: struct {}
 SlangReflectionVariableLayout :: struct {}
 SlangReflectionTypeParameter :: struct {}
 SlangReflectionUserAttribute :: struct {}
+SlangReflectionAttribute :: SlangReflectionUserAttribute;
 SlangReflectionFunction :: struct {}
 SlangReflectionGeneric :: struct {}
 
@@ -2282,7 +2361,7 @@ SlangParameterCategory :: enum SlangParameterCategoryIntegral {
     SLANG_PARAMETER_CATEGORY_COUNT_V1                      :: COUNT_V1;
 }
 
-/* Types of API-managed bindings that a parameter might use.
+/** Types of API-managed bindings that a parameter might use.
 
 `SlangBindingType` represents the distinct types of binding ranges that might be
 understood by an underlying graphics API or cross-API abstraction layer.
@@ -2296,13 +2375,13 @@ the purposes of layout, where the layout rules of some targets will treat
 parameters of different types as occupying the same binding space for layout
 (e.g., in SPIR-V both a `Texture2D` and `SamplerState` use the same space of
 `binding` indices, and are not allowed to overlap), while those same types
-map to different types of bindingsin the API (e.g., both textures and samplers
+map to different types of bindings in the API (e.g., both textures and samplers
 use different `VkDescriptorType` values).
 
 When you want to answer "what register/binding did this parameter use?" you
 should use `SlangParameterCategory`.
 
-When you wnat to answer "what type of descriptor range should this parameter use?"
+When you want to answer "what type of descriptor range should this parameter use?"
 you should use `SlangBindingType`.
 */
 SlangBindingTypeIntegral :: SlangUInt32;
@@ -2448,6 +2527,7 @@ SlangImageFormat :: enum SlangImageFormatIntegral {
     r8ui           :: 39;
     r64ui          :: 40;
     r64i           :: 41;
+    bgra8          :: 42;
 
     SLANG_IMAGE_FORMAT_unknown        :: unknown;
     SLANG_IMAGE_FORMAT_rgba32f        :: rgba32f;
@@ -2491,6 +2571,7 @@ SlangImageFormat :: enum SlangImageFormatIntegral {
     SLANG_IMAGE_FORMAT_r8ui           :: r8ui;
     SLANG_IMAGE_FORMAT_r64ui          :: r64ui;
     SLANG_IMAGE_FORMAT_r64i           :: r64i;
+    SLANG_IMAGE_FORMAT_bgra8          :: bgra8;
 }
 
 // Shader Parameter Reflection
@@ -2506,23 +2587,23 @@ spCreateSession :: (deprecated: *u8 = null) -> *SlangSession #foreign libslang;
 */
 spDestroySession :: (session: *SlangSession) -> void #foreign libslang;
 
-/* @see slang::IGlobalSession::setSharedLibraryLoader
+/** @see slang::IGlobalSession::setSharedLibraryLoader
 */
 spSessionSetSharedLibraryLoader :: (session: *SlangSession, loader: *ISlangSharedLibraryLoader) -> void #foreign libslang;
 
-/* @see slang::IGlobalSession::getSharedLibraryLoader
+/** @see slang::IGlobalSession::getSharedLibraryLoader
 */
 spSessionGetSharedLibraryLoader :: (session: *SlangSession) -> *ISlangSharedLibraryLoader #foreign libslang;
 
-/* @see slang::IGlobalSession::checkCompileTargetSupport
+/** @see slang::IGlobalSession::checkCompileTargetSupport
 */
 spSessionCheckCompileTargetSupport :: (session: *SlangSession, target: SlangCompileTarget) -> SlangResult #foreign libslang;
 
-/* @see slang::IGlobalSession::checkPassThroughSupport
+/** @see slang::IGlobalSession::checkPassThroughSupport
 */
 spSessionCheckPassThroughSupport :: (session: *SlangSession, passThrough: SlangPassThrough) -> SlangResult #foreign libslang;
 
-/* @see slang::IGlobalSession::addBuiltins
+/** @see slang::IGlobalSession::addBuiltins
 */
 spAddBuiltins :: (session: *SlangSession, sourcePath: *u8, sourceString: *u8) -> void #foreign libslang;
 
@@ -2564,7 +2645,7 @@ spSetTargetForceGLSLScalarBufferLayout :: (request: *SlangCompileRequest, target
 /*! @see slang::ICompileRequest::setTargetUseMinimumSlangOptimization */
 spSetTargetUseMinimumSlangOptimization :: (request: *ICompileRequest, targetIndex: s32, val: bool) -> void #foreign libslang;
 
-/*! @see slang::ICompileRequest::setIngoreCapabilityCheck */
+/*! @see slang::ICompileRequest::setIgnoreCapabilityCheck */
 spSetIgnoreCapabilityCheck :: (request: *ICompileRequest, val: bool) -> void #foreign libslang;
 
 /*! @see slang::ICompileRequest::setCodeGenTarget */
@@ -2723,7 +2804,7 @@ spEnableReproCapture :: (request: *SlangCompileRequest) -> SlangResult #foreign 
 /*! @see slang::ICompileRequest::getCompileTimeProfile */
 spGetCompileTimeProfile :: (request: *SlangCompileRequest, compileTimeProfile: **ISlangProfiler, shouldClear: bool) -> SlangResult #foreign libslang;
 
-/* Extract contents of a repro.
+/** Extract contents of a repro.
 
 Writes the contained files and manifest with their 'unique' names into fileSystem. For more
 details read the docs/repro.md documentation.
@@ -2773,7 +2854,7 @@ spReflectionUserAttribute_GetArgumentValueInt :: (attrib: *SlangReflectionUserAt
 
 spReflectionUserAttribute_GetArgumentValueFloat :: (attrib: *SlangReflectionUserAttribute, index: u32, rs: *float) -> SlangResult #foreign libslang;
 
-/* Returns the string-typed value of a user attribute argument
+/** Returns the string-typed value of a user attribute argument
 The string returned is not null-terminated. The length of the string is returned via
 `outSize`. If index of out of range, or if the specified argument is not a string, the
 function will return nullptr.
@@ -2792,7 +2873,7 @@ spReflectionType_applySpecializations :: (type: *SlangReflectionType, generic: *
 spReflectionType_GetFieldCount :: (type: *SlangReflectionType) -> u32 #foreign libslang;
 spReflectionType_GetFieldByIndex :: (type: *SlangReflectionType, index: u32) -> *SlangReflectionVariable #foreign libslang;
 
-/* Returns the number of elements in the given type.
+/** Returns the number of elements in the given type.
 
 This operation is valid for vector and array types. For other types it returns zero.
 
@@ -2913,6 +2994,8 @@ spReflectionVariable_GetUserAttribute :: (var: *SlangReflectionVariable, index: 
 spReflectionVariable_FindUserAttributeByName :: (var: *SlangReflectionVariable, globalSession: *SlangSession, name: *u8) -> *SlangReflectionUserAttribute #foreign libslang;
 
 spReflectionVariable_HasDefaultValue :: (inVar: *SlangReflectionVariable) -> bool #foreign libslang;
+
+spReflectionVariable_GetDefaultValueInt :: (inVar: *SlangReflectionVariable, rs: *s64) -> SlangResult #foreign libslang;
 spReflectionVariable_GetGenericContainer :: (var: *SlangReflectionVariable) -> *SlangReflectionGeneric #foreign libslang;
 
 spReflectionVariable_applySpecializations :: (var: *SlangReflectionVariable, generic: *SlangReflectionGeneric) -> *SlangReflectionVariable #foreign libslang;
@@ -2994,7 +3077,7 @@ spReflectionGeneric_GetConcreteIntVal :: (generic: *SlangReflectionGeneric, valu
 
 spReflectionGeneric_applySpecializations :: (currGeneric: *SlangReflectionGeneric, generic: *SlangReflectionGeneric) -> *SlangReflectionGeneric #foreign libslang;
 
-/* Get the stage that a variable belongs to (if any).
+/** Get the stage that a variable belongs to (if any).
 
 A variable "belongs" to a specific stage when it is a varying input/output
 parameter either defined as part of the parameter list for an entry
@@ -3045,6 +3128,8 @@ spReflectionTypeParameter_GetConstraintCount :: (typeParam: *SlangReflectionType
 spReflectionTypeParameter_GetConstraintByIndex :: (typeParam: *SlangReflectionTypeParameter, index: u32) -> *SlangReflectionType #foreign libslang;
 
 // Shader Reflection
+spReflection_ToJson :: (reflection: *SlangReflection, request: *SlangCompileRequest, outBlob: **ISlangBlob) -> SlangResult #foreign libslang;
+
 spReflection_GetParameterCount :: (reflection: *SlangReflection) -> u32 #foreign libslang;
 spReflection_GetParameterByIndex :: (reflection: *SlangReflection, index: u32) -> *SlangReflectionParameter #foreign libslang;
 
@@ -3088,35 +3173,58 @@ spReflection_getHashedString :: (reflection: *SlangReflection, index: SlangUInt,
 /// Count should *NOT* include terminating zero.
 spComputeStringHash :: (chars: *u8, count: u64) -> SlangUInt32 #foreign libslang;
 
-/// Get a type layout representing reflection information for the global-scope prameters.
+/// Get a type layout representing reflection information for the global-scope parameters.
 spReflection_getGlobalParamsTypeLayout :: (reflection: *SlangReflection) -> *SlangReflectionTypeLayout #foreign libslang;
 
-/// Get a variable layout representing reflection information for the global-scope prameters.
+/// Get a variable layout representing reflection information for the global-scope parameters.
 spReflection_getGlobalParamsVarLayout :: (reflection: *SlangReflection) -> *SlangReflectionVariableLayout #foreign libslang;
 
 spGetTranslationUnitSource :: (request: *SlangCompileRequest, translationUnitIndex: s32) -> *u8 #foreign libslang;
 
 spReflection_GetSession :: (reflection: *SlangReflection) -> *ISession #foreign libslang "_Z23spReflection_GetSessionP18SlangProgramLayout";
 
-/* @see slang::ICompileRequest::getProgram
+/** @see slang::ICompileRequest::getProgram
 */
 spCompileRequest_getProgram :: (request: *SlangCompileRequest, outProgram: **IComponentType) -> SlangResult #foreign libslang;
 
-/* @see slang::ICompileRequest::getProgramWithEntryPoints
+/** @see slang::ICompileRequest::getProgramWithEntryPoints
 */
 spCompileRequest_getProgramWithEntryPoints :: (request: *SlangCompileRequest, outProgram: **IComponentType) -> SlangResult #foreign libslang;
 
-/* @see slang::ICompileRequest::getEntryPoint
+/** @see slang::ICompileRequest::getEntryPoint
 */
 spCompileRequest_getEntryPoint :: (request: *SlangCompileRequest, entryPointIndex: SlangInt, outEntryPoint: **IComponentType) -> SlangResult #foreign libslang;
 
-/* @see slang::ICompileRequest::getModule
+/** @see slang::ICompileRequest::getModule
 */
 spCompileRequest_getModule :: (request: *SlangCompileRequest, translationUnitIndex: SlangInt, outModule: **IModule) -> SlangResult #foreign libslang;
 
-/* @see slang::ICompileRequest::getSession
+/** @see slang::ICompileRequest::getSession
 */
 spCompileRequest_getSession :: (request: *SlangCompileRequest, outSession: **ISession) -> SlangResult #foreign libslang;
+
+SlangLanguageVersion :: enum u32 {
+    SLANG_LANGUAGE_VERSION_2025 :: 2025;
+}
+
+/* Description of a Slang global session.
+*/
+SlangGlobalSessionDesc :: struct {
+    /// Size of this struct.
+    structureSize:   u32 = 80;
+
+    /// Slang API version.
+    apiVersion:      u32 = 0;
+
+    /// Slang language version.
+    languageVersion: u32 = xx SlangLanguageVersion.SLANG_LANGUAGE_VERSION_2025;
+
+    /// Whether to enable GLSL support.
+    enableGLSL       := false;
+
+    /// Reserved for future use.
+    reserved:        [16] u32;
+}
 
 /* Create a global session, with the built-in core module.
 
@@ -3124,6 +3232,13 @@ spCompileRequest_getSession :: (request: *SlangCompileRequest, outSession: **ISe
 @param outGlobalSession (out)The created global session.
 */
 slang_createGlobalSession :: (apiVersion: SlangInt, outGlobalSession: **IGlobalSession) -> SlangResult #foreign libslang;
+
+/* Create a global session, with the built-in core module.
+
+@param desc Description of the global session.
+@param outGlobalSession (out)The created global session.
+*/
+slang_createGlobalSession2 :: (desc: *SlangGlobalSessionDesc, outGlobalSession: **IGlobalSession) -> SlangResult #foreign libslang;
 
 /* Create a global session, but do not set up the core module. The core module can
 then be loaded via loadCoreModule or compileCoreModule
@@ -3149,6 +3264,10 @@ should be called after this function.
 */
 slang_shutdown :: () -> void #foreign libslang;
 
+/* Return the last signaled internal error message.
+*/
+slang_getLastInternalErrorMessage :: () -> *u8 #foreign libslang;
+
 #scope_file
 
 #import "Basic"; // For assert
@@ -3156,43 +3275,65 @@ slang_shutdown :: () -> void #foreign libslang;
 
 #run {
     {
-        instance: CompilerOptionValue;
-        assert(((cast(*void)(*instance.kind)) - cast(*void)(*instance)) == 0, "CompilerOptionValue.kind has unexpected offset % instead of 0", ((cast(*void)(*instance.kind)) - cast(*void)(*instance)));
-        assert(size_of(type_of(CompilerOptionValue.kind)) == 4, "CompilerOptionValue.kind has unexpected size % instead of 4", size_of(type_of(CompilerOptionValue.kind)));
-        assert(((cast(*void)(*instance.intValue0)) - cast(*void)(*instance)) == 4, "CompilerOptionValue.intValue0 has unexpected offset % instead of 4", ((cast(*void)(*instance.intValue0)) - cast(*void)(*instance)));
-        assert(size_of(type_of(CompilerOptionValue.intValue0)) == 4, "CompilerOptionValue.intValue0 has unexpected size % instead of 4", size_of(type_of(CompilerOptionValue.intValue0)));
-        assert(((cast(*void)(*instance.intValue1)) - cast(*void)(*instance)) == 8, "CompilerOptionValue.intValue1 has unexpected offset % instead of 8", ((cast(*void)(*instance.intValue1)) - cast(*void)(*instance)));
-        assert(size_of(type_of(CompilerOptionValue.intValue1)) == 4, "CompilerOptionValue.intValue1 has unexpected size % instead of 4", size_of(type_of(CompilerOptionValue.intValue1)));
-        assert(((cast(*void)(*instance.stringValue0)) - cast(*void)(*instance)) == 16, "CompilerOptionValue.stringValue0 has unexpected offset % instead of 16", ((cast(*void)(*instance.stringValue0)) - cast(*void)(*instance)));
-        assert(size_of(type_of(CompilerOptionValue.stringValue0)) == 8, "CompilerOptionValue.stringValue0 has unexpected size % instead of 8", size_of(type_of(CompilerOptionValue.stringValue0)));
-        assert(((cast(*void)(*instance.stringValue1)) - cast(*void)(*instance)) == 24, "CompilerOptionValue.stringValue1 has unexpected offset % instead of 24", ((cast(*void)(*instance.stringValue1)) - cast(*void)(*instance)));
-        assert(size_of(type_of(CompilerOptionValue.stringValue1)) == 8, "CompilerOptionValue.stringValue1 has unexpected size % instead of 8", size_of(type_of(CompilerOptionValue.stringValue1)));
+        info := type_info(CompilerOptionValue);
+        for info.members {
+            if it.name == {
+                case "kind";
+                    assert(it.offset_in_bytes == 0, "CompilerOptionValue.kind has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "CompilerOptionValue.kind has unexpected size % instead of 4", it.type.runtime_size);
+                case "intValue0";
+                    assert(it.offset_in_bytes == 4, "CompilerOptionValue.intValue0 has unexpected offset % instead of 4", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "CompilerOptionValue.intValue0 has unexpected size % instead of 4", it.type.runtime_size);
+                case "intValue1";
+                    assert(it.offset_in_bytes == 8, "CompilerOptionValue.intValue1 has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "CompilerOptionValue.intValue1 has unexpected size % instead of 4", it.type.runtime_size);
+                case "stringValue0";
+                    assert(it.offset_in_bytes == 16, "CompilerOptionValue.stringValue0 has unexpected offset % instead of 16", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "CompilerOptionValue.stringValue0 has unexpected size % instead of 8", it.type.runtime_size);
+                case "stringValue1";
+                    assert(it.offset_in_bytes == 24, "CompilerOptionValue.stringValue1 has unexpected offset % instead of 24", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "CompilerOptionValue.stringValue1 has unexpected size % instead of 8", it.type.runtime_size);
+            }
+        }
         assert(size_of(CompilerOptionValue) == 32, "CompilerOptionValue has size % instead of 32", size_of(CompilerOptionValue));
     }
 
     {
-        instance: CompilerOptionEntry;
-        assert(((cast(*void)(*instance.name)) - cast(*void)(*instance)) == 0, "CompilerOptionEntry.name has unexpected offset % instead of 0", ((cast(*void)(*instance.name)) - cast(*void)(*instance)));
-        assert(size_of(type_of(CompilerOptionEntry.name)) == 4, "CompilerOptionEntry.name has unexpected size % instead of 4", size_of(type_of(CompilerOptionEntry.name)));
-        assert(((cast(*void)(*instance.value)) - cast(*void)(*instance)) == 8, "CompilerOptionEntry.value has unexpected offset % instead of 8", ((cast(*void)(*instance.value)) - cast(*void)(*instance)));
-        assert(size_of(type_of(CompilerOptionEntry.value)) == 32, "CompilerOptionEntry.value has unexpected size % instead of 32", size_of(type_of(CompilerOptionEntry.value)));
+        info := type_info(CompilerOptionEntry);
+        for info.members {
+            if it.name == {
+                case "name";
+                    assert(it.offset_in_bytes == 0, "CompilerOptionEntry.name has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "CompilerOptionEntry.name has unexpected size % instead of 4", it.type.runtime_size);
+                case "value";
+                    assert(it.offset_in_bytes == 8, "CompilerOptionEntry.value has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 32, "CompilerOptionEntry.value has unexpected size % instead of 32", it.type.runtime_size);
+            }
+        }
         assert(size_of(CompilerOptionEntry) == 40, "CompilerOptionEntry has size % instead of 40", size_of(CompilerOptionEntry));
     }
 
     assert(size_of(ICompileRequest) == 8, "ICompileRequest has size % instead of 8", size_of(ICompileRequest));
 
     {
-        instance: GenericArgReflection;
-        assert(((cast(*void)(*instance.typeVal)) - cast(*void)(*instance)) == 0, "GenericArgReflection.typeVal has unexpected offset % instead of 0", ((cast(*void)(*instance.typeVal)) - cast(*void)(*instance)));
-        assert(size_of(type_of(GenericArgReflection.typeVal)) == 8, "GenericArgReflection.typeVal has unexpected size % instead of 8", size_of(type_of(GenericArgReflection.typeVal)));
-        assert(((cast(*void)(*instance.intVal)) - cast(*void)(*instance)) == 0, "GenericArgReflection.intVal has unexpected offset % instead of 0", ((cast(*void)(*instance.intVal)) - cast(*void)(*instance)));
-        assert(size_of(type_of(GenericArgReflection.intVal)) == 8, "GenericArgReflection.intVal has unexpected size % instead of 8", size_of(type_of(GenericArgReflection.intVal)));
-        assert(((cast(*void)(*instance.boolVal)) - cast(*void)(*instance)) == 0, "GenericArgReflection.boolVal has unexpected offset % instead of 0", ((cast(*void)(*instance.boolVal)) - cast(*void)(*instance)));
-        assert(size_of(type_of(GenericArgReflection.boolVal)) == 1, "GenericArgReflection.boolVal has unexpected size % instead of 1", size_of(type_of(GenericArgReflection.boolVal)));
+        info := type_info(GenericArgReflection);
+        for info.members {
+            if it.name == {
+                case "typeVal";
+                    assert(it.offset_in_bytes == 0, "GenericArgReflection.typeVal has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "GenericArgReflection.typeVal has unexpected size % instead of 8", it.type.runtime_size);
+                case "intVal";
+                    assert(it.offset_in_bytes == 0, "GenericArgReflection.intVal has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "GenericArgReflection.intVal has unexpected size % instead of 8", it.type.runtime_size);
+                case "boolVal";
+                    assert(it.offset_in_bytes == 0, "GenericArgReflection.boolVal has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 1, "GenericArgReflection.boolVal has unexpected size % instead of 1", it.type.runtime_size);
+            }
+        }
         assert(size_of(GenericArgReflection) == 8, "GenericArgReflection has size % instead of 8", size_of(GenericArgReflection));
     }
 
-    assert(size_of(UserAttribute) == 1, "UserAttribute has size % instead of 1", size_of(UserAttribute));
+    assert(size_of(Attribute) == 1, "Attribute has size % instead of 1", size_of(Attribute));
 
     assert(size_of(TypeReflection) == 1, "TypeReflection has size % instead of 1", size_of(TypeReflection));
 
@@ -3215,22 +3356,35 @@ slang_shutdown :: () -> void #foreign libslang;
     assert(size_of(ShaderReflection) == 1, "ShaderReflection has size % instead of 1", size_of(ShaderReflection));
 
     {
-        instance: DeclReflection.IteratedList.Iterator;
-        assert(((cast(*void)(*instance.parent)) - cast(*void)(*instance)) == 0, "DeclReflection.IteratedList.Iterator.parent has unexpected offset % instead of 0", ((cast(*void)(*instance.parent)) - cast(*void)(*instance)));
-        assert(size_of(type_of(DeclReflection.IteratedList.Iterator.parent)) == 8, "DeclReflection.IteratedList.Iterator.parent has unexpected size % instead of 8", size_of(type_of(DeclReflection.IteratedList.Iterator.parent)));
-        assert(((cast(*void)(*instance.count)) - cast(*void)(*instance)) == 8, "DeclReflection.IteratedList.Iterator.count has unexpected offset % instead of 8", ((cast(*void)(*instance.count)) - cast(*void)(*instance)));
-        assert(size_of(type_of(DeclReflection.IteratedList.Iterator.count)) == 4, "DeclReflection.IteratedList.Iterator.count has unexpected size % instead of 4", size_of(type_of(DeclReflection.IteratedList.Iterator.count)));
-        assert(((cast(*void)(*instance.index)) - cast(*void)(*instance)) == 12, "DeclReflection.IteratedList.Iterator.index has unexpected offset % instead of 12", ((cast(*void)(*instance.index)) - cast(*void)(*instance)));
-        assert(size_of(type_of(DeclReflection.IteratedList.Iterator.index)) == 4, "DeclReflection.IteratedList.Iterator.index has unexpected size % instead of 4", size_of(type_of(DeclReflection.IteratedList.Iterator.index)));
+        info := type_info(DeclReflection.IteratedList.Iterator);
+        for info.members {
+            if it.name == {
+                case "parent";
+                    assert(it.offset_in_bytes == 0, "DeclReflection.IteratedList.Iterator.parent has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "DeclReflection.IteratedList.Iterator.parent has unexpected size % instead of 8", it.type.runtime_size);
+                case "count";
+                    assert(it.offset_in_bytes == 8, "DeclReflection.IteratedList.Iterator.count has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "DeclReflection.IteratedList.Iterator.count has unexpected size % instead of 4", it.type.runtime_size);
+                case "index";
+                    assert(it.offset_in_bytes == 12, "DeclReflection.IteratedList.Iterator.index has unexpected offset % instead of 12", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "DeclReflection.IteratedList.Iterator.index has unexpected size % instead of 4", it.type.runtime_size);
+            }
+        }
         assert(size_of(DeclReflection.IteratedList.Iterator) == 16, "DeclReflection.IteratedList.Iterator has size % instead of 16", size_of(DeclReflection.IteratedList.Iterator));
     }
 
     {
-        instance: DeclReflection.IteratedList;
-        assert(((cast(*void)(*instance.count)) - cast(*void)(*instance)) == 0, "DeclReflection.IteratedList.count has unexpected offset % instead of 0", ((cast(*void)(*instance.count)) - cast(*void)(*instance)));
-        assert(size_of(type_of(DeclReflection.IteratedList.count)) == 4, "DeclReflection.IteratedList.count has unexpected size % instead of 4", size_of(type_of(DeclReflection.IteratedList.count)));
-        assert(((cast(*void)(*instance.parent)) - cast(*void)(*instance)) == 8, "DeclReflection.IteratedList.parent has unexpected offset % instead of 8", ((cast(*void)(*instance.parent)) - cast(*void)(*instance)));
-        assert(size_of(type_of(DeclReflection.IteratedList.parent)) == 8, "DeclReflection.IteratedList.parent has unexpected size % instead of 8", size_of(type_of(DeclReflection.IteratedList.parent)));
+        info := type_info(DeclReflection.IteratedList);
+        for info.members {
+            if it.name == {
+                case "count";
+                    assert(it.offset_in_bytes == 0, "DeclReflection.IteratedList.count has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "DeclReflection.IteratedList.count has unexpected size % instead of 4", it.type.runtime_size);
+                case "parent";
+                    assert(it.offset_in_bytes == 8, "DeclReflection.IteratedList.parent has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "DeclReflection.IteratedList.parent has unexpected size % instead of 8", it.type.runtime_size);
+            }
+        }
         assert(size_of(DeclReflection.IteratedList) == 16, "DeclReflection.IteratedList has size % instead of 16", size_of(DeclReflection.IteratedList));
     }
 
@@ -3241,67 +3395,104 @@ slang_shutdown :: () -> void #foreign libslang;
     assert(size_of(IGlobalSession) == 8, "IGlobalSession has size % instead of 8", size_of(IGlobalSession));
 
     {
-        instance: TargetDesc;
-        assert(((cast(*void)(*instance.structureSize)) - cast(*void)(*instance)) == 0, "TargetDesc.structureSize has unexpected offset % instead of 0", ((cast(*void)(*instance.structureSize)) - cast(*void)(*instance)));
-        assert(size_of(type_of(TargetDesc.structureSize)) == 8, "TargetDesc.structureSize has unexpected size % instead of 8", size_of(type_of(TargetDesc.structureSize)));
-        assert(((cast(*void)(*instance.format)) - cast(*void)(*instance)) == 8, "TargetDesc.format has unexpected offset % instead of 8", ((cast(*void)(*instance.format)) - cast(*void)(*instance)));
-        assert(size_of(type_of(TargetDesc.format)) == 4, "TargetDesc.format has unexpected size % instead of 4", size_of(type_of(TargetDesc.format)));
-        assert(((cast(*void)(*instance.profile)) - cast(*void)(*instance)) == 12, "TargetDesc.profile has unexpected offset % instead of 12", ((cast(*void)(*instance.profile)) - cast(*void)(*instance)));
-        assert(size_of(type_of(TargetDesc.profile)) == 4, "TargetDesc.profile has unexpected size % instead of 4", size_of(type_of(TargetDesc.profile)));
-        assert(((cast(*void)(*instance.flags)) - cast(*void)(*instance)) == 16, "TargetDesc.flags has unexpected offset % instead of 16", ((cast(*void)(*instance.flags)) - cast(*void)(*instance)));
-        assert(size_of(type_of(TargetDesc.flags)) == 4, "TargetDesc.flags has unexpected size % instead of 4", size_of(type_of(TargetDesc.flags)));
-        assert(((cast(*void)(*instance.floatingPointMode)) - cast(*void)(*instance)) == 20, "TargetDesc.floatingPointMode has unexpected offset % instead of 20", ((cast(*void)(*instance.floatingPointMode)) - cast(*void)(*instance)));
-        assert(size_of(type_of(TargetDesc.floatingPointMode)) == 4, "TargetDesc.floatingPointMode has unexpected size % instead of 4", size_of(type_of(TargetDesc.floatingPointMode)));
-        assert(((cast(*void)(*instance.lineDirectiveMode)) - cast(*void)(*instance)) == 24, "TargetDesc.lineDirectiveMode has unexpected offset % instead of 24", ((cast(*void)(*instance.lineDirectiveMode)) - cast(*void)(*instance)));
-        assert(size_of(type_of(TargetDesc.lineDirectiveMode)) == 4, "TargetDesc.lineDirectiveMode has unexpected size % instead of 4", size_of(type_of(TargetDesc.lineDirectiveMode)));
-        assert(((cast(*void)(*instance.forceGLSLScalarBufferLayout)) - cast(*void)(*instance)) == 28, "TargetDesc.forceGLSLScalarBufferLayout has unexpected offset % instead of 28", ((cast(*void)(*instance.forceGLSLScalarBufferLayout)) - cast(*void)(*instance)));
-        assert(size_of(type_of(TargetDesc.forceGLSLScalarBufferLayout)) == 1, "TargetDesc.forceGLSLScalarBufferLayout has unexpected size % instead of 1", size_of(type_of(TargetDesc.forceGLSLScalarBufferLayout)));
-        assert(((cast(*void)(*instance.compilerOptionEntries)) - cast(*void)(*instance)) == 32, "TargetDesc.compilerOptionEntries has unexpected offset % instead of 32", ((cast(*void)(*instance.compilerOptionEntries)) - cast(*void)(*instance)));
-        assert(size_of(type_of(TargetDesc.compilerOptionEntries)) == 8, "TargetDesc.compilerOptionEntries has unexpected size % instead of 8", size_of(type_of(TargetDesc.compilerOptionEntries)));
-        assert(((cast(*void)(*instance.compilerOptionEntryCount)) - cast(*void)(*instance)) == 40, "TargetDesc.compilerOptionEntryCount has unexpected offset % instead of 40", ((cast(*void)(*instance.compilerOptionEntryCount)) - cast(*void)(*instance)));
-        assert(size_of(type_of(TargetDesc.compilerOptionEntryCount)) == 4, "TargetDesc.compilerOptionEntryCount has unexpected size % instead of 4", size_of(type_of(TargetDesc.compilerOptionEntryCount)));
+        info := type_info(TargetDesc);
+        for info.members {
+            if it.name == {
+                case "structureSize";
+                    assert(it.offset_in_bytes == 0, "TargetDesc.structureSize has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "TargetDesc.structureSize has unexpected size % instead of 8", it.type.runtime_size);
+                case "format";
+                    assert(it.offset_in_bytes == 8, "TargetDesc.format has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "TargetDesc.format has unexpected size % instead of 4", it.type.runtime_size);
+                case "profile";
+                    assert(it.offset_in_bytes == 12, "TargetDesc.profile has unexpected offset % instead of 12", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "TargetDesc.profile has unexpected size % instead of 4", it.type.runtime_size);
+                case "flags";
+                    assert(it.offset_in_bytes == 16, "TargetDesc.flags has unexpected offset % instead of 16", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "TargetDesc.flags has unexpected size % instead of 4", it.type.runtime_size);
+                case "floatingPointMode";
+                    assert(it.offset_in_bytes == 20, "TargetDesc.floatingPointMode has unexpected offset % instead of 20", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "TargetDesc.floatingPointMode has unexpected size % instead of 4", it.type.runtime_size);
+                case "lineDirectiveMode";
+                    assert(it.offset_in_bytes == 24, "TargetDesc.lineDirectiveMode has unexpected offset % instead of 24", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "TargetDesc.lineDirectiveMode has unexpected size % instead of 4", it.type.runtime_size);
+                case "forceGLSLScalarBufferLayout";
+                    assert(it.offset_in_bytes == 28, "TargetDesc.forceGLSLScalarBufferLayout has unexpected offset % instead of 28", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 1, "TargetDesc.forceGLSLScalarBufferLayout has unexpected size % instead of 1", it.type.runtime_size);
+                case "compilerOptionEntries";
+                    assert(it.offset_in_bytes == 32, "TargetDesc.compilerOptionEntries has unexpected offset % instead of 32", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "TargetDesc.compilerOptionEntries has unexpected size % instead of 8", it.type.runtime_size);
+                case "compilerOptionEntryCount";
+                    assert(it.offset_in_bytes == 40, "TargetDesc.compilerOptionEntryCount has unexpected offset % instead of 40", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "TargetDesc.compilerOptionEntryCount has unexpected size % instead of 4", it.type.runtime_size);
+            }
+        }
         assert(size_of(TargetDesc) == 48, "TargetDesc has size % instead of 48", size_of(TargetDesc));
     }
 
     {
-        instance: PreprocessorMacroDesc;
-        assert(((cast(*void)(*instance.name)) - cast(*void)(*instance)) == 0, "PreprocessorMacroDesc.name has unexpected offset % instead of 0", ((cast(*void)(*instance.name)) - cast(*void)(*instance)));
-        assert(size_of(type_of(PreprocessorMacroDesc.name)) == 8, "PreprocessorMacroDesc.name has unexpected size % instead of 8", size_of(type_of(PreprocessorMacroDesc.name)));
-        assert(((cast(*void)(*instance.value)) - cast(*void)(*instance)) == 8, "PreprocessorMacroDesc.value has unexpected offset % instead of 8", ((cast(*void)(*instance.value)) - cast(*void)(*instance)));
-        assert(size_of(type_of(PreprocessorMacroDesc.value)) == 8, "PreprocessorMacroDesc.value has unexpected size % instead of 8", size_of(type_of(PreprocessorMacroDesc.value)));
+        info := type_info(PreprocessorMacroDesc);
+        for info.members {
+            if it.name == {
+                case "name";
+                    assert(it.offset_in_bytes == 0, "PreprocessorMacroDesc.name has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "PreprocessorMacroDesc.name has unexpected size % instead of 8", it.type.runtime_size);
+                case "value";
+                    assert(it.offset_in_bytes == 8, "PreprocessorMacroDesc.value has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "PreprocessorMacroDesc.value has unexpected size % instead of 8", it.type.runtime_size);
+            }
+        }
         assert(size_of(PreprocessorMacroDesc) == 16, "PreprocessorMacroDesc has size % instead of 16", size_of(PreprocessorMacroDesc));
     }
 
     {
-        instance: SessionDesc;
-        assert(((cast(*void)(*instance.structureSize)) - cast(*void)(*instance)) == 0, "SessionDesc.structureSize has unexpected offset % instead of 0", ((cast(*void)(*instance.structureSize)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.structureSize)) == 8, "SessionDesc.structureSize has unexpected size % instead of 8", size_of(type_of(SessionDesc.structureSize)));
-        assert(((cast(*void)(*instance.targets)) - cast(*void)(*instance)) == 8, "SessionDesc.targets has unexpected offset % instead of 8", ((cast(*void)(*instance.targets)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.targets)) == 8, "SessionDesc.targets has unexpected size % instead of 8", size_of(type_of(SessionDesc.targets)));
-        assert(((cast(*void)(*instance.targetCount)) - cast(*void)(*instance)) == 16, "SessionDesc.targetCount has unexpected offset % instead of 16", ((cast(*void)(*instance.targetCount)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.targetCount)) == 8, "SessionDesc.targetCount has unexpected size % instead of 8", size_of(type_of(SessionDesc.targetCount)));
-        assert(((cast(*void)(*instance.flags)) - cast(*void)(*instance)) == 24, "SessionDesc.flags has unexpected offset % instead of 24", ((cast(*void)(*instance.flags)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.flags)) == 4, "SessionDesc.flags has unexpected size % instead of 4", size_of(type_of(SessionDesc.flags)));
-        assert(((cast(*void)(*instance.defaultMatrixLayoutMode)) - cast(*void)(*instance)) == 28, "SessionDesc.defaultMatrixLayoutMode has unexpected offset % instead of 28", ((cast(*void)(*instance.defaultMatrixLayoutMode)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.defaultMatrixLayoutMode)) == 4, "SessionDesc.defaultMatrixLayoutMode has unexpected size % instead of 4", size_of(type_of(SessionDesc.defaultMatrixLayoutMode)));
-        assert(((cast(*void)(*instance.searchPaths)) - cast(*void)(*instance)) == 32, "SessionDesc.searchPaths has unexpected offset % instead of 32", ((cast(*void)(*instance.searchPaths)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.searchPaths)) == 8, "SessionDesc.searchPaths has unexpected size % instead of 8", size_of(type_of(SessionDesc.searchPaths)));
-        assert(((cast(*void)(*instance.searchPathCount)) - cast(*void)(*instance)) == 40, "SessionDesc.searchPathCount has unexpected offset % instead of 40", ((cast(*void)(*instance.searchPathCount)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.searchPathCount)) == 8, "SessionDesc.searchPathCount has unexpected size % instead of 8", size_of(type_of(SessionDesc.searchPathCount)));
-        assert(((cast(*void)(*instance.preprocessorMacros)) - cast(*void)(*instance)) == 48, "SessionDesc.preprocessorMacros has unexpected offset % instead of 48", ((cast(*void)(*instance.preprocessorMacros)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.preprocessorMacros)) == 8, "SessionDesc.preprocessorMacros has unexpected size % instead of 8", size_of(type_of(SessionDesc.preprocessorMacros)));
-        assert(((cast(*void)(*instance.preprocessorMacroCount)) - cast(*void)(*instance)) == 56, "SessionDesc.preprocessorMacroCount has unexpected offset % instead of 56", ((cast(*void)(*instance.preprocessorMacroCount)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.preprocessorMacroCount)) == 8, "SessionDesc.preprocessorMacroCount has unexpected size % instead of 8", size_of(type_of(SessionDesc.preprocessorMacroCount)));
-        assert(((cast(*void)(*instance.fileSystem)) - cast(*void)(*instance)) == 64, "SessionDesc.fileSystem has unexpected offset % instead of 64", ((cast(*void)(*instance.fileSystem)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.fileSystem)) == 8, "SessionDesc.fileSystem has unexpected size % instead of 8", size_of(type_of(SessionDesc.fileSystem)));
-        assert(((cast(*void)(*instance.enableEffectAnnotations)) - cast(*void)(*instance)) == 72, "SessionDesc.enableEffectAnnotations has unexpected offset % instead of 72", ((cast(*void)(*instance.enableEffectAnnotations)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.enableEffectAnnotations)) == 1, "SessionDesc.enableEffectAnnotations has unexpected size % instead of 1", size_of(type_of(SessionDesc.enableEffectAnnotations)));
-        assert(((cast(*void)(*instance.allowGLSLSyntax)) - cast(*void)(*instance)) == 73, "SessionDesc.allowGLSLSyntax has unexpected offset % instead of 73", ((cast(*void)(*instance.allowGLSLSyntax)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.allowGLSLSyntax)) == 1, "SessionDesc.allowGLSLSyntax has unexpected size % instead of 1", size_of(type_of(SessionDesc.allowGLSLSyntax)));
-        assert(((cast(*void)(*instance.compilerOptionEntries)) - cast(*void)(*instance)) == 80, "SessionDesc.compilerOptionEntries has unexpected offset % instead of 80", ((cast(*void)(*instance.compilerOptionEntries)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.compilerOptionEntries)) == 8, "SessionDesc.compilerOptionEntries has unexpected size % instead of 8", size_of(type_of(SessionDesc.compilerOptionEntries)));
-        assert(((cast(*void)(*instance.compilerOptionEntryCount)) - cast(*void)(*instance)) == 88, "SessionDesc.compilerOptionEntryCount has unexpected offset % instead of 88", ((cast(*void)(*instance.compilerOptionEntryCount)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SessionDesc.compilerOptionEntryCount)) == 4, "SessionDesc.compilerOptionEntryCount has unexpected size % instead of 4", size_of(type_of(SessionDesc.compilerOptionEntryCount)));
+        info := type_info(SessionDesc);
+        for info.members {
+            if it.name == {
+                case "structureSize";
+                    assert(it.offset_in_bytes == 0, "SessionDesc.structureSize has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SessionDesc.structureSize has unexpected size % instead of 8", it.type.runtime_size);
+                case "targets";
+                    assert(it.offset_in_bytes == 8, "SessionDesc.targets has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SessionDesc.targets has unexpected size % instead of 8", it.type.runtime_size);
+                case "targetCount";
+                    assert(it.offset_in_bytes == 16, "SessionDesc.targetCount has unexpected offset % instead of 16", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SessionDesc.targetCount has unexpected size % instead of 8", it.type.runtime_size);
+                case "flags";
+                    assert(it.offset_in_bytes == 24, "SessionDesc.flags has unexpected offset % instead of 24", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SessionDesc.flags has unexpected size % instead of 4", it.type.runtime_size);
+                case "defaultMatrixLayoutMode";
+                    assert(it.offset_in_bytes == 28, "SessionDesc.defaultMatrixLayoutMode has unexpected offset % instead of 28", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SessionDesc.defaultMatrixLayoutMode has unexpected size % instead of 4", it.type.runtime_size);
+                case "searchPaths";
+                    assert(it.offset_in_bytes == 32, "SessionDesc.searchPaths has unexpected offset % instead of 32", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SessionDesc.searchPaths has unexpected size % instead of 8", it.type.runtime_size);
+                case "searchPathCount";
+                    assert(it.offset_in_bytes == 40, "SessionDesc.searchPathCount has unexpected offset % instead of 40", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SessionDesc.searchPathCount has unexpected size % instead of 8", it.type.runtime_size);
+                case "preprocessorMacros";
+                    assert(it.offset_in_bytes == 48, "SessionDesc.preprocessorMacros has unexpected offset % instead of 48", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SessionDesc.preprocessorMacros has unexpected size % instead of 8", it.type.runtime_size);
+                case "preprocessorMacroCount";
+                    assert(it.offset_in_bytes == 56, "SessionDesc.preprocessorMacroCount has unexpected offset % instead of 56", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SessionDesc.preprocessorMacroCount has unexpected size % instead of 8", it.type.runtime_size);
+                case "fileSystem";
+                    assert(it.offset_in_bytes == 64, "SessionDesc.fileSystem has unexpected offset % instead of 64", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SessionDesc.fileSystem has unexpected size % instead of 8", it.type.runtime_size);
+                case "enableEffectAnnotations";
+                    assert(it.offset_in_bytes == 72, "SessionDesc.enableEffectAnnotations has unexpected offset % instead of 72", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 1, "SessionDesc.enableEffectAnnotations has unexpected size % instead of 1", it.type.runtime_size);
+                case "allowGLSLSyntax";
+                    assert(it.offset_in_bytes == 73, "SessionDesc.allowGLSLSyntax has unexpected offset % instead of 73", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 1, "SessionDesc.allowGLSLSyntax has unexpected size % instead of 1", it.type.runtime_size);
+                case "compilerOptionEntries";
+                    assert(it.offset_in_bytes == 80, "SessionDesc.compilerOptionEntries has unexpected offset % instead of 80", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SessionDesc.compilerOptionEntries has unexpected size % instead of 8", it.type.runtime_size);
+                case "compilerOptionEntryCount";
+                    assert(it.offset_in_bytes == 88, "SessionDesc.compilerOptionEntryCount has unexpected offset % instead of 88", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SessionDesc.compilerOptionEntryCount has unexpected size % instead of 4", it.type.runtime_size);
+            }
+        }
         assert(size_of(SessionDesc) == 96, "SessionDesc has size % instead of 96", size_of(SessionDesc));
     }
 
@@ -3320,22 +3511,35 @@ slang_shutdown :: () -> void #foreign libslang;
     assert(size_of(IModulePrecompileService_Experimental) == 8, "IModulePrecompileService_Experimental has size % instead of 8", size_of(IModulePrecompileService_Experimental));
 
     {
-        instance: SpecializationArg;
-        assert(((cast(*void)(*instance.kind)) - cast(*void)(*instance)) == 0, "SpecializationArg.kind has unexpected offset % instead of 0", ((cast(*void)(*instance.kind)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SpecializationArg.kind)) == 4, "SpecializationArg.kind has unexpected size % instead of 4", size_of(type_of(SpecializationArg.kind)));
+        info := type_info(SpecializationArg);
+        for info.members {
+            if it.name == {
+                case "kind";
+                    assert(it.offset_in_bytes == 0, "SpecializationArg.kind has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SpecializationArg.kind has unexpected size % instead of 4", it.type.runtime_size);
+            }
+        }
         assert(size_of(SpecializationArg) == 16, "SpecializationArg has size % instead of 16", size_of(SpecializationArg));
     }
 
     {
-        instance: SlangUUID;
-        assert(((cast(*void)(*instance.data1)) - cast(*void)(*instance)) == 0, "SlangUUID.data1 has unexpected offset % instead of 0", ((cast(*void)(*instance.data1)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SlangUUID.data1)) == 4, "SlangUUID.data1 has unexpected size % instead of 4", size_of(type_of(SlangUUID.data1)));
-        assert(((cast(*void)(*instance.data2)) - cast(*void)(*instance)) == 4, "SlangUUID.data2 has unexpected offset % instead of 4", ((cast(*void)(*instance.data2)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SlangUUID.data2)) == 2, "SlangUUID.data2 has unexpected size % instead of 2", size_of(type_of(SlangUUID.data2)));
-        assert(((cast(*void)(*instance.data3)) - cast(*void)(*instance)) == 6, "SlangUUID.data3 has unexpected offset % instead of 6", ((cast(*void)(*instance.data3)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SlangUUID.data3)) == 2, "SlangUUID.data3 has unexpected size % instead of 2", size_of(type_of(SlangUUID.data3)));
-        assert(((cast(*void)(*instance.data4)) - cast(*void)(*instance)) == 8, "SlangUUID.data4 has unexpected offset % instead of 8", ((cast(*void)(*instance.data4)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SlangUUID.data4)) == 8, "SlangUUID.data4 has unexpected size % instead of 8", size_of(type_of(SlangUUID.data4)));
+        info := type_info(SlangUUID);
+        for info.members {
+            if it.name == {
+                case "data1";
+                    assert(it.offset_in_bytes == 0, "SlangUUID.data1 has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SlangUUID.data1 has unexpected size % instead of 4", it.type.runtime_size);
+                case "data2";
+                    assert(it.offset_in_bytes == 4, "SlangUUID.data2 has unexpected offset % instead of 4", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 2, "SlangUUID.data2 has unexpected size % instead of 2", it.type.runtime_size);
+                case "data3";
+                    assert(it.offset_in_bytes == 6, "SlangUUID.data3 has unexpected offset % instead of 6", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 2, "SlangUUID.data3 has unexpected size % instead of 2", it.type.runtime_size);
+                case "data4";
+                    assert(it.offset_in_bytes == 8, "SlangUUID.data4 has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SlangUUID.data4 has unexpected size % instead of 8", it.type.runtime_size);
+            }
+        }
         assert(size_of(SlangUUID) == 16, "SlangUUID has size % instead of 16", size_of(SlangUUID));
     }
 
@@ -3348,9 +3552,14 @@ slang_shutdown :: () -> void #foreign libslang;
     assert(size_of(ISlangBlob) == 8, "ISlangBlob has size % instead of 8", size_of(ISlangBlob));
 
     {
-        instance: SlangTerminatedChars;
-        assert(((cast(*void)(*instance.chars)) - cast(*void)(*instance)) == 0, "SlangTerminatedChars.chars has unexpected offset % instead of 0", ((cast(*void)(*instance.chars)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SlangTerminatedChars.chars)) == 1, "SlangTerminatedChars.chars has unexpected size % instead of 1", size_of(type_of(SlangTerminatedChars.chars)));
+        info := type_info(SlangTerminatedChars);
+        for info.members {
+            if it.name == {
+                case "chars";
+                    assert(it.offset_in_bytes == 0, "SlangTerminatedChars.chars has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 1, "SlangTerminatedChars.chars has unexpected size % instead of 1", it.type.runtime_size);
+            }
+        }
         assert(size_of(SlangTerminatedChars) == 1, "SlangTerminatedChars has size % instead of 1", size_of(SlangTerminatedChars));
     }
 
@@ -3371,14 +3580,45 @@ slang_shutdown :: () -> void #foreign libslang;
     assert(size_of(ISlangProfiler) == 8, "ISlangProfiler has size % instead of 8", size_of(ISlangProfiler));
 
     {
-        instance: SlangReflectionGenericArg;
-        assert(((cast(*void)(*instance.typeVal)) - cast(*void)(*instance)) == 0, "SlangReflectionGenericArg.typeVal has unexpected offset % instead of 0", ((cast(*void)(*instance.typeVal)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SlangReflectionGenericArg.typeVal)) == 8, "SlangReflectionGenericArg.typeVal has unexpected size % instead of 8", size_of(type_of(SlangReflectionGenericArg.typeVal)));
-        assert(((cast(*void)(*instance.intVal)) - cast(*void)(*instance)) == 0, "SlangReflectionGenericArg.intVal has unexpected offset % instead of 0", ((cast(*void)(*instance.intVal)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SlangReflectionGenericArg.intVal)) == 8, "SlangReflectionGenericArg.intVal has unexpected size % instead of 8", size_of(type_of(SlangReflectionGenericArg.intVal)));
-        assert(((cast(*void)(*instance.boolVal)) - cast(*void)(*instance)) == 0, "SlangReflectionGenericArg.boolVal has unexpected offset % instead of 0", ((cast(*void)(*instance.boolVal)) - cast(*void)(*instance)));
-        assert(size_of(type_of(SlangReflectionGenericArg.boolVal)) == 1, "SlangReflectionGenericArg.boolVal has unexpected size % instead of 1", size_of(type_of(SlangReflectionGenericArg.boolVal)));
+        info := type_info(SlangReflectionGenericArg);
+        for info.members {
+            if it.name == {
+                case "typeVal";
+                    assert(it.offset_in_bytes == 0, "SlangReflectionGenericArg.typeVal has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SlangReflectionGenericArg.typeVal has unexpected size % instead of 8", it.type.runtime_size);
+                case "intVal";
+                    assert(it.offset_in_bytes == 0, "SlangReflectionGenericArg.intVal has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SlangReflectionGenericArg.intVal has unexpected size % instead of 8", it.type.runtime_size);
+                case "boolVal";
+                    assert(it.offset_in_bytes == 0, "SlangReflectionGenericArg.boolVal has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 1, "SlangReflectionGenericArg.boolVal has unexpected size % instead of 1", it.type.runtime_size);
+            }
+        }
         assert(size_of(SlangReflectionGenericArg) == 8, "SlangReflectionGenericArg has size % instead of 8", size_of(SlangReflectionGenericArg));
+    }
+
+    {
+        info := type_info(SlangGlobalSessionDesc);
+        for info.members {
+            if it.name == {
+                case "structureSize";
+                    assert(it.offset_in_bytes == 0, "SlangGlobalSessionDesc.structureSize has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SlangGlobalSessionDesc.structureSize has unexpected size % instead of 4", it.type.runtime_size);
+                case "apiVersion";
+                    assert(it.offset_in_bytes == 4, "SlangGlobalSessionDesc.apiVersion has unexpected offset % instead of 4", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SlangGlobalSessionDesc.apiVersion has unexpected size % instead of 4", it.type.runtime_size);
+                case "languageVersion";
+                    assert(it.offset_in_bytes == 8, "SlangGlobalSessionDesc.languageVersion has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SlangGlobalSessionDesc.languageVersion has unexpected size % instead of 4", it.type.runtime_size);
+                case "enableGLSL";
+                    assert(it.offset_in_bytes == 12, "SlangGlobalSessionDesc.enableGLSL has unexpected offset % instead of 12", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 1, "SlangGlobalSessionDesc.enableGLSL has unexpected size % instead of 1", it.type.runtime_size);
+                case "reserved";
+                    assert(it.offset_in_bytes == 16, "SlangGlobalSessionDesc.reserved has unexpected offset % instead of 16", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 64, "SlangGlobalSessionDesc.reserved has unexpected size % instead of 64", it.type.runtime_size);
+            }
+        }
+        assert(size_of(SlangGlobalSessionDesc) == 80, "SlangGlobalSessionDesc has size % instead of 80", size_of(SlangGlobalSessionDesc));
     }
 }
 

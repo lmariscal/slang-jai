@@ -1,6 +1,10 @@
 #ifndef SLANG_H
 #define SLANG_H
 
+#ifdef SLANG_USER_CONFIG
+    #include SLANG_USER_CONFIG
+#endif
+
 /** \file slang.h
 
 The Slang API provides services to compile, reflect, and specialize code
@@ -227,10 +231,9 @@ convention for interface methods.
 #if defined(_MSC_VER)
     #define SLANG_DLL_EXPORT __declspec(dllexport)
 #else
-    #if 0 && __GNUC__ >= 4
-// Didn't work on latest gcc on linux.. so disable for now
-// https://gcc.gnu.org/wiki/Visibility
-        #define SLANG_DLL_EXPORT __attribute__((dllexport))
+    #if SLANG_WINDOWS_FAMILY
+        #define SLANG_DLL_EXPORT \
+            __attribute__((dllexport)) __attribute__((__visibility__("default")))
     #else
         #define SLANG_DLL_EXPORT __attribute__((__visibility__("default")))
     #endif
@@ -654,6 +657,7 @@ typedef uint32_t SlangSizeT;
         SLANG_PASS_THROUGH_SPIRV_OPT,     ///< SPIRV-opt
         SLANG_PASS_THROUGH_METAL,         ///< Metal compiler
         SLANG_PASS_THROUGH_TINT,          ///< Tint WGSL compiler
+        SLANG_PASS_THROUGH_SPIRV_LINK,    ///< SPIRV-link
         SLANG_PASS_THROUGH_COUNT_OF,
     };
 
@@ -801,6 +805,8 @@ typedef uint32_t SlangSizeT;
         SLANG_STAGE_CALLABLE,
         SLANG_STAGE_MESH,
         SLANG_STAGE_AMPLIFICATION,
+        //
+        SLANG_STAGE_COUNT,
 
         // alias:
         SLANG_STAGE_PIXEL = SLANG_STAGE_FRAGMENT,
@@ -972,6 +978,7 @@ typedef uint32_t SlangSizeT;
         ValidateUniformity,
         AllowGLSL,
         EnableExperimentalPasses,
+        BindlessSpaceIndex, // int
 
         // Internal
 
@@ -1005,6 +1012,9 @@ typedef uint32_t SlangSizeT;
         EmitSpirvMethod, // enum SlangEmitSpirvMethod
 
         EmitReflectionJSON, // bool
+        SaveGLSLModuleBinSource,
+
+        SkipDownstreamLinking, // bool, experimental
         CountOf,
     };
 
@@ -2429,20 +2439,42 @@ struct TypeLayoutReflection
             (SlangReflectionTypeLayout*)this);
     }
 
-    size_t getSize(SlangParameterCategory category = SLANG_PARAMETER_CATEGORY_UNIFORM)
+    size_t getSize(SlangParameterCategory category)
     {
         return spReflectionTypeLayout_GetSize((SlangReflectionTypeLayout*)this, category);
     }
 
-    size_t getStride(SlangParameterCategory category = SLANG_PARAMETER_CATEGORY_UNIFORM)
+    size_t getStride(SlangParameterCategory category)
     {
         return spReflectionTypeLayout_GetStride((SlangReflectionTypeLayout*)this, category);
     }
 
-    int32_t getAlignment(SlangParameterCategory category = SLANG_PARAMETER_CATEGORY_UNIFORM)
+    int32_t getAlignment(SlangParameterCategory category)
     {
         return spReflectionTypeLayout_getAlignment((SlangReflectionTypeLayout*)this, category);
     }
+
+    size_t getSize(slang::ParameterCategory category = slang::ParameterCategory::Uniform)
+    {
+        return spReflectionTypeLayout_GetSize(
+            (SlangReflectionTypeLayout*)this,
+            (SlangParameterCategory)category);
+    }
+
+    size_t getStride(slang::ParameterCategory category = slang::ParameterCategory::Uniform)
+    {
+        return spReflectionTypeLayout_GetStride(
+            (SlangReflectionTypeLayout*)this,
+            (SlangParameterCategory)category);
+    }
+
+    int32_t getAlignment(slang::ParameterCategory category = slang::ParameterCategory::Uniform)
+    {
+        return spReflectionTypeLayout_getAlignment(
+            (SlangReflectionTypeLayout*)this,
+            (SlangParameterCategory)category);
+    }
+
 
     unsigned int getFieldCount()
     {
@@ -2807,6 +2839,11 @@ struct VariableReflection
         return spReflectionVariable_HasDefaultValue((SlangReflectionVariable*)this);
     }
 
+    SlangResult getDefaultValueInt(int64_t* value)
+    {
+        return spReflectionVariable_GetDefaultValueInt((SlangReflectionVariable*)this, value);
+    }
+
     GenericReflection* getGenericContainer()
     {
         return (GenericReflection*)spReflectionVariable_GetGenericContainer(
@@ -2849,10 +2886,17 @@ struct VariableLayoutReflection
     }
 
 
-    size_t getOffset(SlangParameterCategory category = SLANG_PARAMETER_CATEGORY_UNIFORM)
+    size_t getOffset(SlangParameterCategory category)
     {
         return spReflectionVariableLayout_GetOffset((SlangReflectionVariableLayout*)this, category);
     }
+    size_t getOffset(slang::ParameterCategory category = slang::ParameterCategory::Uniform)
+    {
+        return spReflectionVariableLayout_GetOffset(
+            (SlangReflectionVariableLayout*)this,
+            (SlangParameterCategory)category);
+    }
+
 
     TypeReflection* getType() { return getVariable()->getType(); }
 
@@ -2869,6 +2913,12 @@ struct VariableLayoutReflection
     size_t getBindingSpace(SlangParameterCategory category)
     {
         return spReflectionVariableLayout_GetSpace((SlangReflectionVariableLayout*)this, category);
+    }
+    size_t getBindingSpace(slang::ParameterCategory category)
+    {
+        return spReflectionVariableLayout_GetSpace(
+            (SlangReflectionVariableLayout*)this,
+            (SlangParameterCategory)category);
     }
 
     char const* getSemanticName()
@@ -3483,6 +3533,12 @@ struct SessionDesc;
 struct SpecializationArg;
 struct TargetDesc;
 
+enum class BuiltinModuleName
+{
+    Core,
+    GLSL
+};
+
 /** A global session for interaction with the Slang library.
 
 An application may create and re-use a single global session across
@@ -3713,6 +3769,36 @@ struct IGlobalSession : public ISlangUnknown
      */
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL
     getSessionDescDigest(SessionDesc* sessionDesc, ISlangBlob** outBlob) = 0;
+
+    /** Compile from (embedded source) the builtin module on the session.
+    Will return a failure if there is already a builtin module available.
+    NOTE! API is experimental and not ready for production code.
+    @param module The builtin module name.
+    @param flags to control compilation
+    */
+    virtual SLANG_NO_THROW SlangResult SLANG_MCALL
+    compileBuiltinModule(BuiltinModuleName module, CompileCoreModuleFlags flags) = 0;
+
+    /** Load a builtin module. Currently loads modules from the file system.
+    @param module The builtin module name
+    @param moduleData Start address of the serialized core module
+    @param sizeInBytes The size in bytes of the serialized builtin module
+
+    NOTE! API is experimental and not ready for production code
+    */
+    virtual SLANG_NO_THROW SlangResult SLANG_MCALL
+    loadBuiltinModule(BuiltinModuleName module, const void* moduleData, size_t sizeInBytes) = 0;
+
+    /** Save the builtin module to the file system
+    @param module The builtin module name
+    @param archiveType The type of archive used to hold the builtin module
+    @param outBlob The serialized blob containing the builtin module
+
+    NOTE! API is experimental and not ready for production code  */
+    virtual SLANG_NO_THROW SlangResult SLANG_MCALL saveBuiltinModule(
+        BuiltinModuleName module,
+        SlangArchiveType archiveType,
+        ISlangBlob** outBlob) = 0;
 };
 
     #define SLANG_UUID_IGlobalSession IGlobalSession::getTypeGuid()
@@ -4282,6 +4368,10 @@ struct IModule : public IComponentType
 {
     SLANG_COM_INTERFACE(0xc720e64, 0x8722, 0x4d31, {0x89, 0x90, 0x63, 0x8a, 0x98, 0xb1, 0xc2, 0x79})
 
+    /// Find and an entry point by name.
+    /// Note that this does not work in case the function is not explicitly designated as an entry
+    /// point, e.g. using a `[shader("...")]` attribute. In such cases, consider using
+    /// `IModule::findAndCheckEntryPoint` instead.
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL
     findEntryPointByName(char const* name, IEntryPoint** outEntryPoint) = 0;
 
@@ -4392,6 +4482,32 @@ struct SpecializationArg
     // using.
     #define SLANG_API_VERSION 0
 
+enum SlangLanguageVersion
+{
+    SLANG_LANGUAGE_VERSION_2025 = 2025
+};
+
+
+/* Description of a Slang global session.
+ */
+struct SlangGlobalSessionDesc
+{
+    /// Size of this struct.
+    uint32_t structureSize = sizeof(SlangGlobalSessionDesc);
+
+    /// Slang API version.
+    uint32_t apiVersion = SLANG_API_VERSION;
+
+    /// Slang language version.
+    uint32_t languageVersion = SLANG_LANGUAGE_VERSION_2025;
+
+    /// Whether to enable GLSL support.
+    bool enableGLSL = false;
+
+    /// Reserved for future use.
+    uint32_t reserved[16] = {};
+};
+
 /* Create a global session, with the built-in core module.
 
 @param apiVersion Pass in SLANG_API_VERSION
@@ -4399,6 +4515,16 @@ struct SpecializationArg
 */
 SLANG_EXTERN_C SLANG_API SlangResult
 slang_createGlobalSession(SlangInt apiVersion, slang::IGlobalSession** outGlobalSession);
+
+
+/* Create a global session, with the built-in core module.
+
+@param desc Description of the global session.
+@param outGlobalSession (out)The created global session.
+*/
+SLANG_EXTERN_C SLANG_API SlangResult slang_createGlobalSession2(
+    const SlangGlobalSessionDesc* desc,
+    slang::IGlobalSession** outGlobalSession);
 
 /* Create a global session, but do not set up the core module. The core module can
 then be loaded via loadCoreModule or compileCoreModule
@@ -4435,7 +4561,14 @@ namespace slang
 {
 inline SlangResult createGlobalSession(slang::IGlobalSession** outGlobalSession)
 {
-    return slang_createGlobalSession(SLANG_API_VERSION, outGlobalSession);
+    SlangGlobalSessionDesc defaultDesc = {};
+    return slang_createGlobalSession2(&defaultDesc, outGlobalSession);
+}
+inline SlangResult createGlobalSession(
+    const SlangGlobalSessionDesc* desc,
+    slang::IGlobalSession** outGlobalSession)
+{
+    return slang_createGlobalSession2(desc, outGlobalSession);
 }
 inline void shutdown()
 {
